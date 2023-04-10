@@ -7,7 +7,7 @@ import { getStudentCourse } from "../services/duifene/courseService";
 import { login } from "../services/duifene/loginService";
 import { TCheckStatus } from "../types/response";
 
-type UserList = {
+type User = {
   nickname: string;
   loginname: string;
   password: string;
@@ -15,12 +15,19 @@ type UserList = {
 
 const storePath = path.join(__dirname, "../../store/username.json");
 
-const getUserList = (): { userList: UserList[] } => {
+const getUserList = (): { userList: User[] } => {
   return JSON.parse(fs.readFileSync(storePath).toString());
 };
 
-const setUserList = (userList: UserList[]) => {
+const setUserList = (userList: User[]) => {
   fs.writeFileSync(storePath, JSON.stringify({ userList }));
+};
+
+const userCheck = async (user: User) => {
+  const response = await login(user);
+  if (response.data.msg === "0") {
+    throw new Error(response.data.msgbox);
+  }
 };
 
 const handlePromises = (promises: Promise<unknown>[]): Promise<unknown[]> => {
@@ -111,7 +118,8 @@ class duifeneRouterController {
 
   async addUser(ctx: Koa.Context): Promise<void> {
     try {
-      const user = ctx.request.body;
+      const user = ctx.request.body as User;
+      await userCheck(user);
       const { userList } = getUserList();
       if (userList.some(item => item.loginname === user.loginname)) {
         throw new Error("账号已经注册过了");
@@ -128,6 +136,9 @@ class duifeneRouterController {
     try {
       const { loginname } = ctx.params;
       const { userList } = getUserList();
+      if (!userList.some(item => item.loginname === loginname)) {
+        throw new Error("没有对应的账号");
+      }
       const newUserList = userList.filter(item => item.loginname !== loginname);
       setUserList(newUserList);
       ctx.body = baseResponse({ data: newUserList });
@@ -139,7 +150,11 @@ class duifeneRouterController {
   async updateUser(ctx: Koa.Context): Promise<void> {
     try {
       const user = ctx.request.body;
+      await userCheck(user);
       const { userList } = getUserList();
+      if (!userList.some(item => item.loginname === user.loginname)) {
+        throw new Error("没有对应的账号");
+      }
       const newUserList = userList.map(item =>
         item.loginname === user?.loginname ? user : item,
       );

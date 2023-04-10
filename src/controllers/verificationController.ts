@@ -16,30 +16,31 @@ const handleEvent = {
     const [, checkincode] = JSON.parse(content)?.text?.split(" ");
     const tokenResponse = await bot.getAccessToken();
     const Authorization = `Bearer ${tokenResponse?.data.app_access_token}`;
-    duifene
-      .check(checkincode)
-      .then(value => {
-        const requestBody = checkStatusCard(
-          value?.data?.data || [],
-          message_id,
-        );
-        bot.reply({
-          Authorization,
-          message_id,
-          requestBody,
-        });
-      })
-      .catch(error => {
-        bot.reply({
-          Authorization,
-          message_id,
-          requestBody: {
-            content: `{"text":"签到失败: ${error}"}`,
-            msg_type: "text",
-            uuid: message_id,
-          },
-        });
+    try {
+      if (!/^[0-9]{4}/.test(checkincode)) {
+        throw new Error("请勿发送其他信息, 签到码当前格式为4位数字组合");
+      }
+      const response = await duifene.check(checkincode);
+      const requestBody = checkStatusCard(
+        response?.data?.data || [],
+        message_id,
+      );
+      bot.reply({
+        Authorization,
+        message_id,
+        requestBody,
       });
+    } catch (error) {
+      bot.reply({
+        Authorization,
+        message_id,
+        requestBody: {
+          content: `{"text":"签到失败: ${error}"}`,
+          msg_type: "text",
+          uuid: message_id,
+        },
+      });
+    }
   },
 };
 

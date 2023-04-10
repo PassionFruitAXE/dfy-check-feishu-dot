@@ -25,7 +25,7 @@ const setUserList = (userList: User[]) => {
 
 const userCheck = async (user: User) => {
   const response = await login(user);
-  if (response.data.msg === "0") {
+  if (response.data.msg != "1") {
     throw new Error(response.data.msgbox);
   }
 };
@@ -120,7 +120,7 @@ class duifeneRouterController {
     try {
       const user = ctx.request.body as User;
       await userCheck(user);
-      const { userList } = getUserList();
+      const { userList = [] } = getUserList();
       if (userList.some(item => item.loginname === user.loginname)) {
         throw new Error("账号已经注册过了");
       }
@@ -135,7 +135,7 @@ class duifeneRouterController {
   async deleteUser(ctx: Koa.Context): Promise<void> {
     try {
       const { loginname } = ctx.params;
-      const { userList } = getUserList();
+      const { userList = [] } = getUserList();
       if (!userList.some(item => item.loginname === loginname)) {
         throw new Error("没有对应的账号");
       }
@@ -151,7 +151,7 @@ class duifeneRouterController {
     try {
       const user = ctx.request.body;
       await userCheck(user);
-      const { userList } = getUserList();
+      const { userList = [] } = getUserList();
       if (!userList.some(item => item.loginname === user.loginname)) {
         throw new Error("没有对应的账号");
       }

@@ -1,7 +1,7 @@
 import Koa from "koa";
 import { baseResponse } from "../utils/response";
 import { bot, duifene } from "../api";
-import { checkStatusCard } from "../template/card";
+import { createReplyCheckStatusCard, createErrorCard } from "../template/card";
 import { FeiShuBotBody } from "./../types/event";
 
 enum EventType {
@@ -10,36 +10,38 @@ enum EventType {
 
 const handleEvent = {
   [EventType.IM_MESSAGE_RECEIVE]: async (event: FeiShuBotBody["event"]) => {
+    /**@ 机器人事件 */
     const {
       message: { content, message_id },
     } = event;
-    const [, checkincode] = JSON.parse(content)?.text?.split(" ");
-    const tokenResponse = await bot.getAccessToken();
-    const Authorization = `Bearer ${tokenResponse?.data.app_access_token}`;
-    try {
-      if (!/^[0-9]{4}/.test(checkincode)) {
-        throw new Error("请勿发送其他信息, 签到码当前格式为4位数字组合");
+    const [, sendContent] = JSON.parse(content)?.text?.split(" ") as string[];
+    /**指令类型 */
+    const contentType = {
+      /**签到码 */
+      checkInCode: /^[0-9]{4}$/,
+    };
+    const Authorization = await bot.getToken();
+    if (contentType.checkInCode.test(sendContent)) {
+      /**输入为验证码 */
+      try {
+        const response = await duifene.check(sendContent);
+        bot.reply({
+          Authorization,
+          message_id,
+          requestBody: createReplyCheckStatusCard(response?.data?.data || []),
+        });
+      } catch (error) {
+        bot.reply({
+          Authorization,
+          message_id,
+          requestBody: createErrorCard({
+            title: "签到失败",
+            content: `${error}`,
+          }),
+        });
       }
-      const response = await duifene.check(checkincode);
-      const requestBody = checkStatusCard(
-        response?.data?.data || [],
-        message_id,
-      );
-      bot.reply({
-        Authorization,
-        message_id,
-        requestBody,
-      });
-    } catch (error) {
-      bot.reply({
-        Authorization,
-        message_id,
-        requestBody: {
-          content: `{"text":"签到失败: ${error}"}`,
-          msg_type: "text",
-          uuid: message_id,
-        },
-      });
+    } else {
+      throw new Error("旅行者, 我听不懂你在说什么");
     }
   },
 };
@@ -51,8 +53,21 @@ class verificationRouterController {
       header: { event_type: eventType },
       event,
     } = feiShuBotBody;
-    handleEvent[eventType as EventType] &&
-      (await handleEvent[eventType as EventType](event));
+    try {
+      handleEvent[eventType as EventType] &&
+        (await handleEvent[eventType as EventType](event));
+    } catch (error) {
+      const Authorization = await bot.getToken();
+      const receive_id = event.message.chat_id;
+      bot.alert({
+        Authorization,
+        requestBody: createErrorCard({
+          title: "出现错误",
+          content: `${error}`,
+          receive_id,
+        }),
+      });
+    }
     ctx.body = {
       ...JSON.parse(baseResponse()),
       challenge: feiShuBotBody.challenge,

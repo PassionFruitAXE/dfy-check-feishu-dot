@@ -31,6 +31,9 @@ const userCheck = async (user: User) => {
 };
 
 const handlePromises = (promises: Promise<unknown>[]): Promise<unknown[]> => {
+  if (!promises.length) {
+    return Promise.resolve([]);
+  }
   const ans: unknown[] = [];
   return new Promise((resolve, reject) => {
     try {
@@ -88,7 +91,7 @@ class duifeneRouterController {
                   checkincode,
                   cookie,
                 });
-                if (response.msg === -1) {
+                if (response.msg == 0) {
                   throw new Error(response.msgbox);
                 }
                 return {

@@ -1,9 +1,9 @@
+import { TAlertProps, TReplyProps } from "../api/bot";
 import { TCheckStatus } from "../types/response";
 
-export function checkStatusCard(
+export function createReplyCheckStatusCard(
   statusList: TCheckStatus[],
-  message_id: string,
-) {
+): TReplyProps["requestBody"] {
   const template = {
     config: { wide_screen_mode: true },
     elements: statusList.map(({ nickname, status }) => ({
@@ -18,6 +18,44 @@ export function checkStatusCard(
   return {
     content: JSON.stringify(template),
     msg_type: "interactive",
-    uuid: message_id,
+    uuid: `${+new Date()}`,
+  };
+}
+
+type CreateErrorCardProps = {
+  title: string;
+  content: string;
+  receive_id?: string;
+};
+
+export function createErrorCard({
+  title,
+  content,
+  receive_id = "",
+}: CreateErrorCardProps): TAlertProps["requestBody"] {
+  const template = {
+    config: { wide_screen_mode: true },
+    elements: [
+      {
+        tag: "div",
+        text: {
+          content: `${content}`,
+          tag: "plain_text",
+        },
+      },
+    ],
+    header: {
+      template: "red",
+      title: {
+        content: `${title}`,
+        tag: "plain_text",
+      },
+    },
+  };
+  return {
+    content: JSON.stringify(template),
+    msg_type: "interactive",
+    receive_id,
+    uuid: `${+new Date()}`,
   };
 }
